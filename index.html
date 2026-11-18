@@ -1,0 +1,1474 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FutFanatics | Gestão de Ocorrências Operacionais</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Chart.js para Gráficos Interativos -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Google Fonts: Inter (Tipografia Corporativa) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- FontAwesome para Ícones -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        corp: {
+                            navy: '#1E3A8A',
+                            blue: '#2563EB',
+                            blueHover: '#1D4ED8',
+                            red: '#DC2626',
+                            redDark: '#991B1B',
+                            black: '#0F172A',
+                            slate: '#334155',
+                            gray: '#64748B',
+                            border: '#E2E8F0',
+                            bg: '#F1F5F9'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-corp-bg text-corp-black font-sans antialiased min-h-screen flex flex-col">
+
+    <!-- Notificação Flutuante (Substitui alert()) -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- Cabeçalho Principal Corporativo -->
+    <header class="bg-white border-b-2 border-corp-navy shadow-sm sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5">
+            <div class="flex flex-col md:flex-row items-center justify-between gap-4">
+                
+                <!-- Logo Corporativa FutFanatics (FUT e FANATICS exatamente com a mesma largura e altura visual) -->
+                <div class="flex items-center gap-4">
+                    <div class="flex items-center justify-center select-none bg-corp-black px-3.5 py-2 rounded-lg border border-slate-800 shadow-sm">
+                        <svg width="118" height="44" viewBox="0 0 118 44" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="FutFanatics Logo">
+                            <text x="0" y="16" textLength="118" lengthAdjust="spacingAndGlyphs" fill="#FFFFFF" font-family="Inter, sans-serif" font-weight="900" font-size="18">FUT</text>
+                            <rect x="0" y="21" width="118" height="2.5" rx="1" fill="#2563EB"/>
+                            <text x="0" y="41" textLength="118" lengthAdjust="spacingAndGlyphs" fill="#E2E8F0" font-family="Inter, sans-serif" font-weight="900" font-size="18">FANATICS</text>
+                        </svg>
+                    </div>
+                    <div class="border-l border-corp-border pl-4">
+                        <div class="flex items-center gap-2">
+                            <h1 class="text-base sm:text-lg font-bold text-corp-black tracking-tight">Gestão de Ocorrências Operacionais</h1>
+                            <span class="hidden sm:inline-block px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-corp-slate border border-corp-border rounded">E-commerce</span>
+                        </div>
+                        <p class="text-xs text-corp-gray font-medium mt-0.5">Controle de Qualidade, Check-in e Estoque</p>
+                    </div>
+                </div>
+
+                <!-- Barra de Status & Conexão Google Sheets -->
+                <div class="flex flex-wrap items-center justify-center gap-2.5 w-full md:w-auto">
+                    <!-- Indicador de Status -->
+                    <div id="connection-badge" class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-corp-slate border border-corp-border transition-all">
+                        <span id="status-dot" class="w-2 h-2 rounded-full bg-corp-blue"></span>
+                        <span id="status-text">Modo Local (Demonstração)</span>
+                    </div>
+
+                    <!-- Botão Sincronizar -->
+                    <button onclick="syncWithGoogleSheets()" id="btn-sync" title="Atualizar dados da planilha" class="px-3 py-2 rounded-lg bg-white hover:bg-slate-50 text-corp-black border border-slate-300 transition flex items-center gap-1.5 text-xs font-semibold shadow-2xs">
+                        <i id="sync-icon" class="fa-solid fa-rotate text-corp-blue"></i>
+                        <span class="hidden sm:inline">Sincronizar</span>
+                    </button>
+
+                    <!-- Botão Configurar Planilha -->
+                    <button onclick="openConfigModal()" class="px-3.5 py-2 rounded-lg bg-corp-navy hover:bg-blue-950 text-white text-xs font-semibold shadow-sm transition flex items-center gap-2">
+                        <i class="fa-solid fa-database text-blue-300"></i>
+                        <span>Conectar Planilha</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Conteúdo Principal -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+        <!-- Seção 1: KPIs (Indicadores Executivos) -->
+        <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <!-- KPI 1: Total -->
+            <div class="bg-white rounded-lg p-5 border border-corp-border shadow-xs flex items-center justify-between border-l-4 border-l-corp-navy">
+                <div>
+                    <p class="text-[11px] font-bold uppercase tracking-wider text-corp-gray">Total de Ocorrências</p>
+                    <h2 id="kpi-total" class="text-2xl sm:text-3xl font-extrabold text-corp-black mt-1">0</h2>
+                    <p class="text-xs text-corp-gray mt-1">Registros filtrados</p>
+                </div>
+                <div class="w-11 h-11 rounded-lg bg-slate-100 text-corp-navy flex items-center justify-center text-lg border border-corp-border">
+                    <i class="fa-solid fa-clipboard-list"></i>
+                </div>
+            </div>
+
+            <!-- KPI 2: Penalidade Alta -->
+            <div class="bg-white rounded-lg p-5 border border-corp-border shadow-xs flex items-center justify-between border-l-4 border-l-corp-red">
+                <div>
+                    <p class="text-[11px] font-bold uppercase tracking-wider text-corp-gray">Penalidade Alta</p>
+                    <h2 id="kpi-high" class="text-2xl sm:text-3xl font-extrabold text-corp-red mt-1">0</h2>
+                    <p class="text-xs text-corp-red font-medium mt-1">Atenção prioritária</p>
+                </div>
+                <div class="w-11 h-11 rounded-lg bg-red-50 text-corp-red flex items-center justify-center text-lg border border-red-200">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                </div>
+            </div>
+
+            <!-- KPI 3: Setor Crítico -->
+            <div class="bg-white rounded-lg p-5 border border-corp-border shadow-xs flex items-center justify-between border-l-4 border-l-corp-blue">
+                <div>
+                    <p class="text-[11px] font-bold uppercase tracking-wider text-corp-gray">Setor + Recorrente</p>
+                    <h2 id="kpi-sector" class="text-xl sm:text-2xl font-extrabold text-corp-black mt-1 truncate max-w-[150px]">-</h2>
+                    <p id="kpi-sector-count" class="text-xs text-corp-blue font-semibold mt-1">0 ocorrências</p>
+                </div>
+                <div class="w-11 h-11 rounded-lg bg-blue-50 text-corp-blue flex items-center justify-center text-lg border border-blue-200">
+                    <i class="fa-solid fa-boxes-stacked"></i>
+                </div>
+            </div>
+
+            <!-- KPI 4: Colaboradores Envolvidos -->
+            <div class="bg-white rounded-lg p-5 border border-corp-border shadow-xs flex items-center justify-between border-l-4 border-l-corp-black">
+                <div>
+                    <p class="text-[11px] font-bold uppercase tracking-wider text-corp-gray">Colaboradores</p>
+                    <h2 id="kpi-employees" class="text-2xl sm:text-3xl font-extrabold text-corp-black mt-1">0</h2>
+                    <p class="text-xs text-corp-gray mt-1">Com registros ativos</p>
+                </div>
+                <div class="w-11 h-11 rounded-lg bg-slate-100 text-corp-black flex items-center justify-center text-lg border border-corp-border">
+                    <i class="fa-solid fa-users"></i>
+                </div>
+            </div>
+        </section>
+
+        <!-- Seção 2: Formulário de Novo Registro + Gráficos -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            <!-- Coluna Esquerda: Formulário de Lançamento -->
+            <div class="lg:col-span-4 bg-white rounded-lg border border-corp-border shadow-xs overflow-hidden flex flex-col">
+                <div class="bg-corp-black px-5 py-3.5 border-b-2 border-corp-blue flex items-center justify-between">
+                    <div class="flex items-center gap-2 text-white">
+                        <i class="fa-solid fa-file-circle-plus text-blue-400 text-base"></i>
+                        <h2 class="font-bold text-sm uppercase tracking-wider">Registrar Ocorrência</h2>
+                    </div>
+                    <span id="live-clock" class="text-xs font-mono text-slate-300 bg-slate-800 px-2 py-0.5 rounded border border-slate-700">--:--</span>
+                </div>
+
+                <form id="occurrence-form" class="p-5 space-y-4 flex-grow flex flex-col justify-between">
+                    <div class="space-y-3.5">
+                        <!-- Nome do Colaborador -->
+                        <div>
+                            <label for="colaborador" class="block text-[11px] font-bold uppercase tracking-wider text-corp-slate mb-1">
+                                Nome do Colaborador <span class="text-corp-red">*</span>
+                            </label>
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 text-xs">
+                                    <i class="fa-solid fa-user"></i>
+                                </span>
+                                <input type="text" id="colaborador" required placeholder="Ex: Lucas Silva"
+                                    class="w-full pl-8 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-sm text-corp-black focus:outline-none focus:ring-2 focus:ring-corp-blue focus:border-corp-blue focus:bg-white transition">
+                            </div>
+                        </div>
+
+                        <!-- Setor -->
+                        <div>
+                            <label for="setor" class="block text-[11px] font-bold uppercase tracking-wider text-corp-slate mb-1">
+                                Setor Operacional <span class="text-corp-red">*</span>
+                            </label>
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 text-xs">
+                                    <i class="fa-solid fa-warehouse"></i>
+                                </span>
+                                <select id="setor" required
+                                    class="w-full pl-8 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-sm text-corp-black font-medium focus:outline-none focus:ring-2 focus:ring-corp-blue focus:border-corp-blue focus:bg-white transition">
+                                    <option value="" disabled selected>Selecione o setor...</option>
+                                    <option value="Check-in">Check-in</option>
+                                    <option value="Qualidade">Qualidade</option>
+                                    <option value="Estoque">Estoque</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Tipo da Ocorrência -->
+                        <div>
+                            <label for="tipo" class="block text-[11px] font-bold uppercase tracking-wider text-corp-slate mb-1">
+                                Tipo da Ocorrência <span class="text-corp-red">*</span>
+                            </label>
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 text-xs">
+                                    <i class="fa-solid fa-tag"></i>
+                                </span>
+                                <input type="text" id="tipo" list="tipos-sugeridos" required placeholder="Selecione ou digite..."
+                                    class="w-full pl-8 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-sm text-corp-black focus:outline-none focus:ring-2 focus:ring-corp-blue focus:border-corp-blue focus:bg-white transition">
+                                <datalist id="tipos-sugeridos">
+                                    <option value="Falha na conferência de pedido">
+                                    <option value="Erro de endereçamento / bipagem">
+                                    <option value="Avaria em produto / embalagem">
+                                    <option value="Atraso injustificado">
+                                    <option value="Personalização incorreta (Nome/Número)">
+                                    <option value="Divergência de inventário">
+                                    <option value="Uso inadequado de EPI / Equipamento">
+                                </datalist>
+                            </div>
+                        </div>
+
+                        <!-- Penalidade (Somente Azul, Cinza/Preto e Vermelho) -->
+                        <div>
+                            <label class="block text-[11px] font-bold uppercase tracking-wider text-corp-slate mb-1.5">
+                                Gravidade / Penalidade <span class="text-corp-red">*</span>
+                            </label>
+                            <div class="grid grid-cols-3 gap-2">
+                                <label class="cursor-pointer">
+                                    <input type="radio" name="penalidade" value="Leve" class="peer sr-only" required>
+                                    <div class="text-center py-2 px-2 rounded-lg border border-slate-300 bg-slate-50 text-xs font-bold text-corp-slate peer-checked:border-corp-blue peer-checked:bg-blue-50 peer-checked:text-corp-blue transition">
+                                        <i class="fa-solid fa-circle-info block mb-0.5"></i> Leve
+                                    </div>
+                                </label>
+                                <label class="cursor-pointer">
+                                    <input type="radio" name="penalidade" value="Média" class="peer sr-only">
+                                    <div class="text-center py-2 px-2 rounded-lg border border-slate-300 bg-slate-50 text-xs font-bold text-corp-slate peer-checked:border-corp-black peer-checked:bg-slate-800 peer-checked:text-white transition">
+                                        <i class="fa-solid fa-circle-exclamation block mb-0.5"></i> Média
+                                    </div>
+                                </label>
+                                <label class="cursor-pointer">
+                                    <input type="radio" name="penalidade" value="Alta" class="peer sr-only">
+                                    <div class="text-center py-2 px-2 rounded-lg border border-slate-300 bg-slate-50 text-xs font-bold text-corp-slate peer-checked:border-corp-red peer-checked:bg-red-50 peer-checked:text-corp-red transition">
+                                        <i class="fa-solid fa-triangle-exclamation block mb-0.5"></i> Alta
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Gestor Responsável -->
+                        <div>
+                            <label for="gestor" class="block text-[11px] font-bold uppercase tracking-wider text-corp-slate mb-1">
+                                Gestor Responsável <span class="text-corp-red">*</span>
+                            </label>
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 text-xs">
+                                    <i class="fa-solid fa-user-tie"></i>
+                                </span>
+                                <input type="text" id="gestor" required placeholder="Nome do Gestor / Líder"
+                                    class="w-full pl-8 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-sm text-corp-black focus:outline-none focus:ring-2 focus:ring-corp-blue focus:border-corp-blue focus:bg-white transition">
+                            </div>
+                        </div>
+
+                        <!-- Observações -->
+                        <div>
+                            <label for="observacoes" class="block text-[11px] font-bold uppercase tracking-wider text-corp-slate mb-1">
+                                Descrição Inicial (Opcional)
+                            </label>
+                            <textarea id="observacoes" rows="2" placeholder="Nº do pedido, SKU ou detalhe adicional..."
+                                class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-sm text-corp-black focus:outline-none focus:ring-2 focus:ring-corp-blue focus:border-corp-blue focus:bg-white transition"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Botão Submit -->
+                    <button type="submit" id="btn-submit"
+                        class="mt-4 w-full py-2.5 px-4 bg-corp-blue hover:bg-corp-blueHover text-white font-bold text-xs uppercase tracking-wider rounded-lg shadow-sm transition flex items-center justify-center gap-2 cursor-pointer">
+                        <i class="fa-solid fa-check"></i>
+                        <span>Salvar Ocorrência</span>
+                    </button>
+                </form>
+            </div>
+
+            <!-- Coluna Direita: Painel de Gráficos -->
+            <div class="lg:col-span-8 flex flex-col gap-6">
+                
+                <!-- Linha Superior de Gráficos: Setores & Penalidades -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Gráfico 1: Ocorrências por Setor -->
+                    <div class="bg-white p-5 rounded-lg border border-corp-border shadow-xs flex flex-col">
+                        <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
+                            <div>
+                                <h3 class="text-sm font-bold text-corp-black">Ocorrências por Setor</h3>
+                                <p class="text-xs text-corp-gray">Check-in, Qualidade e Estoque</p>
+                            </div>
+                            <span class="p-2 rounded bg-slate-100 text-corp-navy text-xs font-bold border border-corp-border">
+                                <i class="fa-solid fa-chart-column"></i>
+                            </span>
+                        </div>
+                        <div class="relative h-56 w-full flex-grow">
+                            <canvas id="chartSetor"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Gráfico 2: Distribuição por Penalidade -->
+                    <div class="bg-white p-5 rounded-lg border border-corp-border shadow-xs flex flex-col">
+                        <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
+                            <div>
+                                <h3 class="text-sm font-bold text-corp-black">Gravidade das Penalidades</h3>
+                                <p class="text-xs text-corp-gray">Proporção Leve, Média e Alta</p>
+                            </div>
+                            <span class="p-2 rounded bg-red-50 text-corp-red text-xs font-bold border border-red-200">
+                                <i class="fa-solid fa-chart-pie"></i>
+                            </span>
+                        </div>
+                        <div class="relative h-56 w-full flex-grow">
+                            <canvas id="chartPenalidade"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Linha Inferior de Gráficos: Registros por Gestor -->
+                <div class="bg-white p-5 rounded-lg border border-corp-border shadow-xs flex flex-col flex-grow">
+                    <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
+                        <div>
+                            <h3 class="text-sm font-bold text-corp-black">Registros por Gestor Responsável</h3>
+                            <p class="text-xs text-corp-gray">Acompanhamento de apontamentos por liderança</p>
+                        </div>
+                        <span class="p-2 rounded bg-blue-50 text-corp-blue text-xs font-bold border border-blue-200">
+                            <i class="fa-solid fa-user-check"></i>
+                        </span>
+                    </div>
+                    <div class="relative h-52 w-full flex-grow">
+                        <canvas id="chartGestor"></canvas>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Seção 3: Filtros & Tabela de Histórico -->
+        <section class="bg-white rounded-lg border border-corp-border shadow-xs overflow-hidden">
+            <!-- Cabeçalho da Tabela e Filtros -->
+            <div class="p-5 border-b border-corp-border bg-slate-50 space-y-4">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                        <h3 class="text-base font-bold text-corp-black flex items-center gap-2">
+                            <i class="fa-solid fa-table-list text-corp-navy"></i>
+                            Histórico de Ocorrências Registradas
+                        </h3>
+                        <p class="text-xs text-corp-gray">Clique no botão de comentários em cada linha para adicionar observações ou acompanhar tratativas</p>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button onclick="resetFilters()" class="px-3 py-2 text-xs font-semibold text-corp-slate hover:text-corp-black bg-white border border-slate-300 rounded-lg transition">
+                            <i class="fa-solid fa-filter-circle-xmark mr-1"></i> Limpar Filtros
+                        </button>
+                        <button onclick="exportToCSV()" class="px-3.5 py-2 text-xs font-semibold text-white bg-corp-black hover:bg-slate-800 rounded-lg shadow-xs transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-file-csv text-blue-400"></i> Exportar CSV
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Barra de Filtros -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <!-- Busca Colaborador -->
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 text-xs">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                        </span>
+                        <input type="text" id="filter-search" oninput="applyFilters()" placeholder="Buscar colaborador ou tipo..."
+                            class="w-full pl-8 pr-3 py-2 bg-white border border-slate-300 rounded-lg text-xs text-corp-black focus:outline-none focus:ring-2 focus:ring-corp-blue">
+                    </div>
+
+                    <!-- Filtro Setor -->
+                    <select id="filter-setor" onchange="applyFilters()"
+                        class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-medium text-corp-black focus:outline-none focus:ring-2 focus:ring-corp-blue">
+                        <option value="TODOS">Todos os Setores</option>
+                        <option value="Check-in">Setor: Check-in</option>
+                        <option value="Qualidade">Setor: Qualidade</option>
+                        <option value="Estoque">Setor: Estoque</option>
+                    </select>
+
+                    <!-- Filtro Penalidade -->
+                    <select id="filter-penalidade" onchange="applyFilters()"
+                        class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-medium text-corp-black focus:outline-none focus:ring-2 focus:ring-corp-blue">
+                        <option value="TODAS">Todas as Penalidades</option>
+                        <option value="Leve">Penalidade: Leve</option>
+                        <option value="Média">Penalidade: Média</option>
+                        <option value="Alta">Penalidade: Alta</option>
+                    </select>
+
+                    <!-- Filtro Gestor -->
+                    <select id="filter-gestor" onchange="applyFilters()"
+                        class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-medium text-corp-black focus:outline-none focus:ring-2 focus:ring-corp-blue">
+                        <option value="TODOS">Todos os Gestores</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Tabela Responsiva -->
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-100 text-corp-slate uppercase text-[11px] font-bold tracking-wider border-b border-corp-border">
+                            <th class="py-3 px-4">Data / Hora</th>
+                            <th class="py-3 px-4">Colaborador</th>
+                            <th class="py-3 px-4">Setor</th>
+                            <th class="py-3 px-4">Tipo da Ocorrência</th>
+                            <th class="py-3 px-4">Penalidade</th>
+                            <th class="py-3 px-4">Gestor</th>
+                            <th class="py-3 px-4">Descrição</th>
+                            <th class="py-3 px-4 text-right">Comentários</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body" class="divide-y divide-corp-border text-sm">
+                        <!-- Linhas preenchidas via JS -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Estado Vazio -->
+            <div id="empty-state" class="hidden py-12 text-center">
+                <div class="w-12 h-12 rounded-lg bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-3 text-xl border border-corp-border">
+                    <i class="fa-solid fa-folder-open"></i>
+                </div>
+                <p class="text-sm font-bold text-corp-black">Nenhuma ocorrência encontrada</p>
+                <p class="text-xs text-corp-gray mt-1">Tente ajustar os filtros ou registre uma nova ocorrência acima.</p>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Rodapé Corporativo -->
+    <footer class="bg-white border-t border-corp-border py-4 mt-8">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between text-xs text-corp-gray gap-2">
+            <div class="flex items-center gap-2">
+                <span class="font-bold text-corp-black tracking-wider">FUT FANATICS</span>
+                <span>• Sistema Corporativo de Gestão Operacional</span>
+            </div>
+            <div>
+                Sincronização Multi-Terminal via Google Sheets API
+            </div>
+        </div>
+    </footer>
+
+    <!-- Modal de Comentários / Tratativas da Ocorrência -->
+    <div id="comments-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-xs z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg max-w-xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-300 overflow-hidden">
+            <!-- Cabeçalho Modal Comentários -->
+            <div class="bg-corp-black text-white px-5 py-3.5 border-b-2 border-corp-blue flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <i class="fa-solid fa-comments text-blue-400 text-base"></i>
+                    <div>
+                        <h3 class="font-bold text-sm uppercase tracking-wider">Comentários e Tratativas</h3>
+                        <p id="comment-modal-subtitle" class="text-[11px] text-slate-300 font-mono">ID: -</p>
+                    </div>
+                </div>
+                <button onclick="closeCommentsModal()" class="text-slate-400 hover:text-white transition p-1">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Resumo da Ocorrência Selecionada -->
+            <div id="comment-occurrence-summary" class="bg-slate-50 px-5 py-3.5 border-b border-corp-border text-xs space-y-1.5">
+                <!-- Preenchido via JS -->
+            </div>
+
+            <!-- Lista Cronológica de Comentários -->
+            <div id="comments-list" class="p-5 space-y-3 overflow-y-auto flex-grow bg-white min-h-[160px] max-h-[320px]">
+                <!-- Preenchido via JS -->
+            </div>
+
+            <!-- Formulário para Novo Comentário -->
+            <form id="comment-form" class="p-4 bg-slate-50 border-t border-corp-border space-y-3">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    <div class="sm:col-span-1">
+                        <label for="comment-author" class="block text-[10px] font-bold uppercase tracking-wider text-corp-slate mb-1">Autor / Gestor</label>
+                        <input type="text" id="comment-author" required placeholder="Seu nome"
+                            class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs text-corp-black focus:outline-none focus:ring-2 focus:ring-corp-blue">
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label for="comment-text" class="block text-[10px] font-bold uppercase tracking-wider text-corp-slate mb-1">Novo Comentário / Feedback</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="comment-text" required placeholder="Registre uma observação ou feedback..."
+                                class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs text-corp-black focus:outline-none focus:ring-2 focus:ring-corp-blue">
+                            <button type="submit" id="btn-submit-comment" class="px-4 py-2 bg-corp-blue hover:bg-corp-blueHover text-white font-bold text-xs rounded-lg transition shrink-0 flex items-center gap-1.5">
+                                <i class="fa-solid fa-paper-plane"></i>
+                                <span>Enviar</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal de Configuração do Google Sheets -->
+    <div id="config-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-xs z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-300">
+            <!-- Cabeçalho Modal -->
+            <div class="bg-corp-black text-white px-6 py-4 border-b-2 border-corp-blue flex items-center justify-between sticky top-0 z-10">
+                <div class="flex items-center gap-2.5">
+                    <i class="fa-solid fa-database text-blue-400 text-base"></i>
+                    <h3 class="font-bold text-sm uppercase tracking-wider">Conectar Planilha Google (Multi-Computador)</h3>
+                </div>
+                <button onclick="closeConfigModal()" class="text-slate-400 hover:text-white transition p-1">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Corpo Modal -->
+            <div class="p-6 space-y-5 text-sm">
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 text-xs text-slate-800 space-y-1">
+                    <p class="font-bold flex items-center gap-1.5 text-corp-navy">
+                        <i class="fa-solid fa-circle-info text-corp-blue"></i> Sincronização entre terminais
+                    </p>
+                    <p>Cole a URL do Web App do Google Apps Script abaixo. Todos os computadores da operação compartilharão automaticamente os registros e os comentários em tempo real.</p>
+                </div>
+
+                <!-- Campo URL -->
+                <div>
+                    <label for="sheets-url-input" class="block text-[11px] font-bold uppercase tracking-wider text-corp-black mb-1.5">
+                        URL do Web App (Google Apps Script)
+                    </label>
+                    <input type="url" id="sheets-url-input" placeholder="https://script.google.com/macros/s/AKfycbx.../exec"
+                        class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono text-corp-black focus:outline-none focus:ring-2 focus:ring-corp-blue">
+                    <div class="flex flex-wrap items-center justify-between gap-2 mt-3">
+                        <button onclick="saveSheetsConfig()" class="px-4 py-2 bg-corp-blue hover:bg-corp-blueHover text-white font-bold text-xs rounded-lg shadow-xs transition flex items-center gap-2">
+                            <i class="fa-solid fa-check"></i> Salvar e Conectar
+                        </button>
+                        <button onclick="disconnectSheets()" class="px-3.5 py-2 bg-red-50 hover:bg-red-100 text-corp-red font-semibold text-xs rounded-lg border border-red-200 transition">
+                            <i class="fa-solid fa-link-slash mr-1"></i> Desconectar (Modo Local)
+                        </button>
+                    </div>
+                </div>
+
+                <hr class="border-corp-border">
+
+                <!-- Passo a Passo + Código Apps Script -->
+                <div class="space-y-3">
+                    <h4 class="font-bold text-xs uppercase text-corp-slate tracking-wider">Passo a Passo para configurar a Planilha Google:</h4>
+                    <ol class="list-decimal list-inside text-xs text-slate-700 space-y-1.5">
+                        <li>Acesse <a href="https://sheets.new" target="_blank" class="text-corp-blue underline font-semibold">sheets.new</a> para criar uma nova Planilha Google.</li>
+                        <li>No menu superior, clique em <strong>Extensões &gt; Apps Script</strong>.</li>
+                        <li>Apague o código existente e cole o script atualizado abaixo (já inclui suporte a comentários):</li>
+                    </ol>
+
+                    <!-- Bloco de Código Copiável -->
+                    <div class="relative">
+                        <button onclick="copyAppsScriptCode()" class="absolute top-2.5 right-2.5 px-3 py-1.5 bg-corp-blue hover:bg-corp-blueHover text-white text-[11px] font-bold rounded shadow transition flex items-center gap-1.5">
+                            <i class="fa-regular fa-copy"></i> Copiar Código
+                        </button>
+                        <pre id="apps-script-code" class="bg-slate-900 text-blue-300 p-4 rounded-lg text-[11px] font-mono overflow-x-auto leading-relaxed">function doGet(e) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var data = sheet.getDataRange().getValues();
+  var result = [];
+  
+  for (var i = 1; i < data.length; i++) {
+    if (data[i][0] !== "") {
+      var comentariosParsed = [];
+      try {
+        if (data[i][8]) comentariosParsed = JSON.parse(data[i][8]);
+      } catch (err) {
+        comentariosParsed = [];
+      }
+      result.push({
+        id: data[i][0],
+        dataHora: data[i][1],
+        colaborador: data[i][2],
+        setor: data[i][3],
+        tipo: data[i][4],
+        penalidade: data[i][5],
+        gestor: data[i][6],
+        observacoes: data[i][7],
+        comentarios: comentariosParsed
+      });
+    }
+  }
+  
+  return ContentService.createTextOutput(JSON.stringify(result))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function doPost(e) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  if (sheet.getLastRow() === 0) {
+    sheet.appendRow(["ID", "Data/Hora", "Colaborador", "Setor", "Tipo", "Penalidade", "Gestor", "Observações", "ComentariosJSON"]);
+  }
+  
+  var params = JSON.parse(e.postData.contents);
+  
+  if (params.action === "addComment") {
+    var data = sheet.getDataRange().getValues();
+    for (var i = 1; i < data.length; i++) {
+      if (String(data[i][0]) === String(params.id)) {
+        var existing = [];
+        try {
+          if (data[i][8]) existing = JSON.parse(data[i][8]);
+        } catch (err) {
+          existing = [];
+        }
+        existing.push(params.comment);
+        sheet.getRange(i + 1, 9).setValue(JSON.stringify(existing));
+        break;
+      }
+    }
+    return ContentService.createTextOutput(JSON.stringify({status: "comment_added"}))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+  
+  sheet.appendRow([
+    params.id,
+    params.dataHora,
+    params.colaborador,
+    params.setor,
+    params.tipo,
+    params.penalidade,
+    params.gestor,
+    params.observacoes,
+    JSON.stringify(params.comentarios || [])
+  ]);
+  
+  return ContentService.createTextOutput(JSON.stringify({status: "success"}))
+    .setMimeType(ContentService.MimeType.JSON);
+}</pre>
+                    </div>
+
+                    <ol start="4" class="list-decimal list-inside text-xs text-slate-700 space-y-1.5">
+                        <li>Clique em <strong>Implantar &gt; Nova implantação</strong>, selecione <strong>App da Web</strong> e marque acesso para <strong>Qualquer pessoa</strong>.</li>
+                        <li>Copie a <strong>URL do app da Web</strong> gerada e cole no campo acima.</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript Principal -->
+    <script>
+        // ==========================================
+        // ESTADO DA APLICAÇÃO E DADOS INICIAIS
+        // ==========================================
+        const STORAGE_KEY_URL = 'futfanatics_sheets_url';
+        const STORAGE_KEY_DATA = 'futfanatics_local_occurrences_v2';
+        const STORAGE_KEY_MANAGER = 'futfanatics_last_manager';
+
+        // Dados de demonstração corporativos (com comentários de exemplo)
+        const MOCK_DATA = [
+            {
+                id: 'FF-1001',
+                dataHora: '17/11/2026 08:15',
+                colaborador: 'Matheus Oliveira',
+                setor: 'Check-in',
+                tipo: 'Erro de endereçamento / bipagem',
+                penalidade: 'Média',
+                gestor: 'Ricardo Mendes',
+                observacoes: 'Lote de camisas oficiais colocado na doca B incorretamente.',
+                comentarios: [
+                    {
+                        autor: 'Ricardo Mendes',
+                        dataHora: '17/11/2026 08:40',
+                        texto: 'Colaborador reorientado sobre a conferência do código da doca antes de finalizar o bip.'
+                    }
+                ]
+            },
+            {
+                id: 'FF-1002',
+                dataHora: '17/11/2026 09:42',
+                colaborador: 'Camila Santos',
+                setor: 'Qualidade',
+                tipo: 'Personalização incorreta (Nome/Número)',
+                penalidade: 'Alta',
+                gestor: 'Fernanda Costa',
+                observacoes: 'Pedido #884920 - Número desalinhado na prensa térmica.',
+                comentarios: [
+                    {
+                        autor: 'Fernanda Costa',
+                        dataHora: '17/11/2026 10:05',
+                        texto: 'Solicitada reposição imediata da peça ao estoque para não atrasar a coleta.'
+                    },
+                    {
+                        autor: 'Carlos Eduardo',
+                        dataHora: '17/11/2026 10:22',
+                        texto: 'Peça de reposição separada e entregue na bancada de personalização.'
+                    }
+                ]
+            },
+            {
+                id: 'FF-1003',
+                dataHora: '17/11/2026 10:30',
+                colaborador: 'Lucas Pereira',
+                setor: 'Estoque',
+                tipo: 'Atraso injustificado',
+                penalidade: 'Leve',
+                gestor: 'Carlos Eduardo',
+                observacoes: 'Retorno do intervalo 15 min após o horário.',
+                comentarios: []
+            },
+            {
+                id: 'FF-1004',
+                dataHora: '17/11/2026 11:20',
+                colaborador: 'Juliana Almeida',
+                setor: 'Qualidade',
+                tipo: 'Falha na conferência de pedido',
+                penalidade: 'Alta',
+                gestor: 'Fernanda Costa',
+                observacoes: 'Enviado tamanho G no lugar de M antes da expedição.',
+                comentarios: [
+                    {
+                        autor: 'Fernanda Costa',
+                        dataHora: '17/11/2026 11:45',
+                        texto: 'Pedido interceptado na triagem antes do embarque.'
+                    }
+                ]
+            },
+            {
+                id: 'FF-1005',
+                dataHora: '17/11/2026 14:05',
+                colaborador: 'Rafael Souza',
+                setor: 'Estoque',
+                tipo: 'Divergência de inventário',
+                penalidade: 'Média',
+                gestor: 'Carlos Eduardo',
+                observacoes: 'Diferença de 2 unidades no corredor 04 - Chuteiras.',
+                comentarios: []
+            },
+            {
+                id: 'FF-1006',
+                dataHora: '17/11/2026 15:50',
+                colaborador: 'Beatriz Lima',
+                setor: 'Check-in',
+                tipo: 'Avaria em produto / embalagem',
+                penalidade: 'Leve',
+                gestor: 'Ricardo Mendes',
+                observacoes: 'Caixa rasgada durante abertura com estilete.',
+                comentarios: []
+            }
+        ];
+
+        let allOccurrences = [];
+        let filteredOccurrences = [];
+        let sheetsWebAppUrl = localStorage.getItem(STORAGE_KEY_URL) || '';
+        let currentCommentOccurrenceId = null;
+
+        // Instâncias dos Gráficos Chart.js
+        let chartSetorInstance = null;
+        let chartPenalidadeInstance = null;
+        let chartGestorInstance = null;
+
+        // ==========================================
+        // INICIALIZAÇÃO
+        // ==========================================
+        document.addEventListener('DOMContentLoaded', () => {
+            updateLiveClock();
+            setInterval(updateLiveClock, 1000);
+
+            const savedManager = localStorage.getItem(STORAGE_KEY_MANAGER);
+            if (savedManager) {
+                document.getElementById('gestor').value = savedManager;
+            }
+
+            updateConnectionUI();
+            loadInitialData();
+        });
+
+        function updateLiveClock() {
+            const now = new Date();
+            const formatted = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            document.getElementById('live-clock').textContent = formatted;
+        }
+
+        function getCurrentFormattedDateTime() {
+            const now = new Date();
+            const date = now.toLocaleDateString('pt-BR');
+            const time = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            return `${date} ${time}`;
+        }
+
+        // ==========================================
+        // GERENCIAMENTO DE DADOS & GOOGLE SHEETS
+        // ==========================================
+        async function loadInitialData() {
+            if (sheetsWebAppUrl) {
+                await syncWithGoogleSheets();
+            } else {
+                const localSaved = localStorage.getItem(STORAGE_KEY_DATA);
+                if (localSaved) {
+                    try {
+                        allOccurrences = JSON.parse(localSaved);
+                    } catch (e) {
+                        allOccurrences = [...MOCK_DATA];
+                    }
+                } else {
+                    allOccurrences = [...MOCK_DATA];
+                    localStorage.setItem(STORAGE_KEY_DATA, JSON.stringify(allOccurrences));
+                }
+                applyFilters();
+            }
+        }
+
+        async function syncWithGoogleSheets() {
+            if (!sheetsWebAppUrl) {
+                showToast('Nenhuma planilha configurada. Operando em Modo Local.', 'info');
+                applyFilters();
+                return;
+            }
+
+            const syncIcon = document.getElementById('sync-icon');
+            syncIcon.classList.add('fa-spin');
+
+            try {
+                const response = await fetch(sheetsWebAppUrl);
+                if (!response.ok) throw new Error('Falha na resposta do Google Sheets');
+                
+                const data = await response.json();
+                if (Array.isArray(data)) {
+                    allOccurrences = data.reverse().map(item => ({
+                        ...item,
+                        comentarios: Array.isArray(item.comentarios) ? item.comentarios : []
+                    }));
+                    localStorage.setItem(STORAGE_KEY_DATA, JSON.stringify(allOccurrences));
+                    applyFilters();
+                    showToast('Dados sincronizados com a planilha corporativa!', 'success');
+                } else {
+                    throw new Error('Formato de dados inválido');
+                }
+            } catch (error) {
+                console.error('Erro ao sincronizar:', error);
+                showToast('Erro ao ler planilha. Verifique a URL ou permissões.', 'error');
+                const cached = localStorage.getItem(STORAGE_KEY_DATA);
+                if (cached) {
+                    allOccurrences = JSON.parse(cached);
+                    applyFilters();
+                }
+            } finally {
+                syncIcon.classList.remove('fa-spin');
+            }
+        }
+
+        // ==========================================
+        // SUBMISSÃO DO FORMULÁRIO DE OCORRÊNCIA
+        // ==========================================
+        document.getElementById('occurrence-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const colaborador = document.getElementById('colaborador').value.trim();
+            const setor = document.getElementById('setor').value;
+            const tipo = document.getElementById('tipo').value.trim();
+            const penalidadeEl = document.querySelector('input[name="penalidade"]:checked');
+            const gestor = document.getElementById('gestor').value.trim();
+            const observacoes = document.getElementById('observacoes').value.trim() || '-';
+
+            if (!colaborador || !setor || !tipo || !penalidadeEl || !gestor) {
+                showToast('Preencha todos os campos obrigatórios.', 'error');
+                return;
+            }
+
+            const btnSubmit = document.getElementById('btn-submit');
+            const originalBtnHtml = btnSubmit.innerHTML;
+            btnSubmit.disabled = true;
+            btnSubmit.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Salvando...</span>';
+
+            localStorage.setItem(STORAGE_KEY_MANAGER, gestor);
+
+            const newRecord = {
+                id: 'FF-' + Math.floor(1000 + Math.random() * 9000),
+                dataHora: getCurrentFormattedDateTime(),
+                colaborador,
+                setor,
+                tipo,
+                penalidade: penalidadeEl.value,
+                gestor,
+                observacoes,
+                comentarios: []
+            };
+
+            try {
+                if (sheetsWebAppUrl) {
+                    await fetch(sheetsWebAppUrl, {
+                        method: 'POST',
+                        mode: 'no-cors',
+                        headers: {
+                            'Content-Type': 'text/plain;charset=utf-8'
+                        },
+                        body: JSON.stringify(newRecord)
+                    });
+                    showToast('Ocorrência registrada e enviada para a planilha!', 'success');
+                } else {
+                    showToast('Ocorrência salva localmente com sucesso!', 'success');
+                }
+
+                allOccurrences.unshift(newRecord);
+                localStorage.setItem(STORAGE_KEY_DATA, JSON.stringify(allOccurrences));
+                applyFilters();
+
+                document.getElementById('colaborador').value = '';
+                document.getElementById('tipo').value = '';
+                document.getElementById('observacoes').value = '';
+                if (penalidadeEl) penalidadeEl.checked = false;
+
+            } catch (error) {
+                console.error('Erro ao salvar ocorrência:', error);
+                showToast('Falha na rede. Registro salvo localmente.', 'error');
+                allOccurrences.unshift(newRecord);
+                localStorage.setItem(STORAGE_KEY_DATA, JSON.stringify(allOccurrences));
+                applyFilters();
+            } finally {
+                btnSubmit.disabled = false;
+                btnSubmit.innerHTML = originalBtnHtml;
+            }
+        });
+
+        // ==========================================
+        // SISTEMA DE COMENTÁRIOS NAS OCORRÊNCIAS
+        // ==========================================
+        function openCommentsModal(occurrenceId) {
+            const occurrence = allOccurrences.find(o => String(o.id) === String(occurrenceId));
+            if (!occurrence) return;
+
+            currentCommentOccurrenceId = occurrence.id;
+
+            // Preenche cabeçalho e resumo
+            document.getElementById('comment-modal-subtitle').textContent = `Registro ${occurrence.id} • ${occurrence.dataHora}`;
+
+            let badgePenalidade = 'bg-blue-100 text-corp-blue border-blue-200';
+            if (occurrence.penalidade === 'Média') badgePenalidade = 'bg-slate-800 text-white border-slate-900';
+            if (occurrence.penalidade === 'Alta') badgePenalidade = 'bg-red-100 text-corp-red border-red-200';
+
+            document.getElementById('comment-occurrence-summary').innerHTML = `
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <div class="font-bold text-corp-black text-sm">
+                        <i class="fa-solid fa-user text-corp-gray mr-1.5"></i>${escapeHtml(occurrence.colaborador)}
+                        <span class="ml-2 px-2 py-0.5 rounded bg-slate-200 text-corp-black text-[11px] font-bold">${escapeHtml(occurrence.setor)}</span>
+                    </div>
+                    <span class="px-2.5 py-0.5 rounded text-[11px] font-bold border ${badgePenalidade}">
+                        Penalidade ${escapeHtml(occurrence.penalidade)}
+                    </span>
+                </div>
+                <p class="text-corp-slate font-semibold">${escapeHtml(occurrence.tipo)}</p>
+                <p class="text-corp-gray"><span class="font-semibold text-corp-slate">Gestor:</span> ${escapeHtml(occurrence.gestor)} • <span class="font-semibold text-corp-slate">Descrição:</span> ${escapeHtml(occurrence.observacoes)}</p>
+            `;
+
+            // Preenche autor padrão com o gestor salvo
+            const savedManager = localStorage.getItem(STORAGE_KEY_MANAGER) || document.getElementById('gestor').value || '';
+            document.getElementById('comment-author').value = savedManager;
+            document.getElementById('comment-text').value = '';
+
+            renderCommentsList(occurrence);
+            document.getElementById('comments-modal').classList.remove('hidden');
+        }
+
+        function closeCommentsModal() {
+            document.getElementById('comments-modal').classList.add('hidden');
+            currentCommentOccurrenceId = null;
+        }
+
+        function renderCommentsList(occurrence) {
+            const listContainer = document.getElementById('comments-list');
+            const comments = Array.isArray(occurrence.comentarios) ? occurrence.comentarios : [];
+
+            if (comments.length === 0) {
+                listContainer.innerHTML = `
+                    <div class="text-center py-8 text-corp-gray">
+                        <i class="fa-regular fa-comment-dots text-2xl text-slate-300 mb-2 block"></i>
+                        <p class="text-xs font-semibold text-corp-slate">Nenhum comentário registrado ainda.</p>
+                        <p class="text-[11px] mt-0.5">Utilize o campo abaixo para adicionar uma tratativa ou observação.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            listContainer.innerHTML = comments.map(c => `
+                <div class="bg-slate-50 border border-corp-border rounded-lg p-3 space-y-1">
+                    <div class="flex items-center justify-between text-[11px]">
+                        <span class="font-bold text-corp-navy flex items-center gap-1.5">
+                            <i class="fa-solid fa-user-tie text-corp-blue"></i>
+                            ${escapeHtml(c.autor)}
+                        </span>
+                        <span class="font-mono text-corp-gray">${escapeHtml(c.dataHora)}</span>
+                    </div>
+                    <p class="text-xs text-corp-black leading-relaxed">${escapeHtml(c.texto)}</p>
+                </div>
+            `).join('');
+
+            listContainer.scrollTop = listContainer.scrollHeight;
+        }
+
+        document.getElementById('comment-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!currentCommentOccurrenceId) return;
+
+            const autor = document.getElementById('comment-author').value.trim();
+            const texto = document.getElementById('comment-text').value.trim();
+
+            if (!autor || !texto) {
+                showToast('Preencha o nome do autor e o comentário.', 'error');
+                return;
+            }
+
+            const occurrence = allOccurrences.find(o => String(o.id) === String(currentCommentOccurrenceId));
+            if (!occurrence) return;
+
+            const btn = document.getElementById('btn-submit-comment');
+            const originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+
+            localStorage.setItem(STORAGE_KEY_MANAGER, autor);
+
+            const newComment = {
+                autor,
+                dataHora: getCurrentFormattedDateTime(),
+                texto
+            };
+
+            if (!Array.isArray(occurrence.comentarios)) {
+                occurrence.comentarios = [];
+            }
+            occurrence.comentarios.push(newComment);
+
+            // Salva localmente e atualiza UI imediatamente
+            localStorage.setItem(STORAGE_KEY_DATA, JSON.stringify(allOccurrences));
+            renderCommentsList(occurrence);
+            renderTable();
+            document.getElementById('comment-text').value = '';
+
+            // Sincroniza comentário com Google Sheets se estiver conectado
+            if (sheetsWebAppUrl) {
+                try {
+                    await fetch(sheetsWebAppUrl, {
+                        method: 'POST',
+                        mode: 'no-cors',
+                        headers: {
+                            'Content-Type': 'text/plain;charset=utf-8'
+                        },
+                        body: JSON.stringify({
+                            action: 'addComment',
+                            id: occurrence.id,
+                            comment: newComment
+                        })
+                    });
+                    showToast('Comentário salvo e sincronizado com a planilha!', 'success');
+                } catch (err) {
+                    console.error('Erro ao sincronizar comentário:', err);
+                    showToast('Comentário salvo localmente (erro de rede).', 'info');
+                }
+            } else {
+                showToast('Comentário adicionado com sucesso!', 'success');
+            }
+
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        });
+
+        // ==========================================
+        // FILTROS E ATUALIZAÇÃO DA INTERFACE
+        // ==========================================
+        function applyFilters() {
+            const search = document.getElementById('filter-search').value.toLowerCase().trim();
+            const setorFilter = document.getElementById('filter-setor').value;
+            const penalidadeFilter = document.getElementById('filter-penalidade').value;
+            const gestorFilter = document.getElementById('filter-gestor').value;
+
+            updateManagerFilterOptions();
+
+            filteredOccurrences = allOccurrences.filter(item => {
+                const matchSearch = !search || 
+                    (item.colaborador && item.colaborador.toLowerCase().includes(search)) ||
+                    (item.tipo && item.tipo.toLowerCase().includes(search)) ||
+                    (item.observacoes && item.observacoes.toLowerCase().includes(search));
+                
+                const matchSetor = setorFilter === 'TODOS' || item.setor === setorFilter;
+                const matchPenalidade = penalidadeFilter === 'TODAS' || item.penalidade === penalidadeFilter;
+                const matchGestor = gestorFilter === 'TODOS' || item.gestor === gestorFilter;
+
+                return matchSearch && matchSetor && matchPenalidade && matchGestor;
+            });
+
+            updateKPIs();
+            updateCharts();
+            renderTable();
+        }
+
+        function resetFilters() {
+            document.getElementById('filter-search').value = '';
+            document.getElementById('filter-setor').value = 'TODOS';
+            document.getElementById('filter-penalidade').value = 'TODAS';
+            document.getElementById('filter-gestor').value = 'TODOS';
+            applyFilters();
+        }
+
+        function updateManagerFilterOptions() {
+            const select = document.getElementById('filter-gestor');
+            const currentVal = select.value;
+            const managers = [...new Set(allOccurrences.map(o => o.gestor).filter(Boolean))].sort();
+
+            select.innerHTML = '<option value="TODOS">Todos os Gestores</option>';
+            managers.forEach(m => {
+                const opt = document.createElement('option');
+                opt.value = m;
+                opt.textContent = `Gestor: ${m}`;
+                select.appendChild(opt);
+            });
+
+            if (managers.includes(currentVal)) {
+                select.value = currentVal;
+            }
+        }
+
+        // ==========================================
+        // KPIs
+        // ==========================================
+        function updateKPIs() {
+            const total = filteredOccurrences.length;
+            const highCount = filteredOccurrences.filter(o => o.penalidade === 'Alta').length;
+            const uniqueEmployees = new Set(filteredOccurrences.map(o => o.colaborador.toLowerCase().trim())).size;
+
+            const sectorCounts = { 'Check-in': 0, 'Qualidade': 0, 'Estoque': 0 };
+            filteredOccurrences.forEach(o => {
+                if (sectorCounts[o.setor] !== undefined) {
+                    sectorCounts[o.setor]++;
+                }
+            });
+
+            let topSector = '-';
+            let maxSectorCount = 0;
+            for (const [sec, count] of Object.entries(sectorCounts)) {
+                if (count > maxSectorCount) {
+                    maxSectorCount = count;
+                    topSector = sec;
+                }
+            }
+
+            document.getElementById('kpi-total').textContent = total;
+            document.getElementById('kpi-high').textContent = highCount;
+            document.getElementById('kpi-sector').textContent = topSector;
+            document.getElementById('kpi-sector-count').textContent = `${maxSectorCount} ocorrência${maxSectorCount === 1 ? '' : 's'}`;
+            document.getElementById('kpi-employees').textContent = uniqueEmployees;
+        }
+
+        // ==========================================
+        // GRÁFICOS INTERATIVOS (SOMENTE AZUL, VERMELHO, CINZA E PRETO)
+        // ==========================================
+        function updateCharts() {
+            const setores = ['Check-in', 'Qualidade', 'Estoque'];
+            const setorData = setores.map(s => filteredOccurrences.filter(o => o.setor === s).length);
+
+            const penalidades = ['Leve', 'Média', 'Alta'];
+            const penalidadeData = penalidades.map(p => filteredOccurrences.filter(o => o.penalidade === p).length);
+
+            const gestorMap = {};
+            filteredOccurrences.forEach(o => {
+                const g = o.gestor || 'Não informado';
+                gestorMap[g] = (gestorMap[g] || 0) + 1;
+            });
+            const gestorLabels = Object.keys(gestorMap);
+            const gestorValues = Object.values(gestorMap);
+
+            // Gráfico 1: Setores (Azul Marinho, Azul Royal, Preto)
+            const ctxSetor = document.getElementById('chartSetor').getContext('2d');
+            if (chartSetorInstance) chartSetorInstance.destroy();
+            chartSetorInstance = new Chart(ctxSetor, {
+                type: 'bar',
+                data: {
+                    labels: setores,
+                    datasets: [{
+                        label: 'Ocorrências',
+                        data: setorData,
+                        backgroundColor: ['#1E3A8A', '#2563EB', '#0F172A'],
+                        borderRadius: 6,
+                        barThickness: 36
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { stepSize: 1, font: { family: 'Inter', size: 11 }, color: '#64748B' },
+                            grid: { color: '#F1F5F9' }
+                        },
+                        x: {
+                            ticks: { font: { family: 'Inter', weight: 'bold', size: 12 }, color: '#0F172A' },
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+
+            // Gráfico 2: Penalidades (Leve = Azul, Média = Cinza Escuro/Preto, Alta = Vermelho)
+            const ctxPenalidade = document.getElementById('chartPenalidade').getContext('2d');
+            if (chartPenalidadeInstance) chartPenalidadeInstance.destroy();
+            chartPenalidadeInstance = new Chart(ctxPenalidade, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Leve', 'Média', 'Alta'],
+                    datasets: [{
+                        data: penalidadeData,
+                        backgroundColor: ['#2563EB', '#334155', '#DC2626'],
+                        borderWidth: 2,
+                        borderColor: '#FFFFFF',
+                        hoverOffset: 5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '62%',
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                usePointStyle: true,
+                                padding: 16,
+                                color: '#0F172A',
+                                font: { family: 'Inter', weight: '600', size: 12 }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Gráfico 3: Gestores (Azul Corporativo)
+            const ctxGestor = document.getElementById('chartGestor').getContext('2d');
+            if (chartGestorInstance) chartGestorInstance.destroy();
+            chartGestorInstance = new Chart(ctxGestor, {
+                type: 'bar',
+                data: {
+                    labels: gestorLabels.length ? gestorLabels : ['Sem dados'],
+                    datasets: [{
+                        label: 'Ocorrências Registradas',
+                        data: gestorValues.length ? gestorValues : [0],
+                        backgroundColor: '#1E3A8A',
+                        hoverBackgroundColor: '#2563EB',
+                        borderRadius: 5,
+                        barThickness: 20
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            ticks: { stepSize: 1, font: { family: 'Inter', size: 11 }, color: '#64748B' },
+                            grid: { color: '#F1F5F9' }
+                        },
+                        y: {
+                            ticks: { font: { family: 'Inter', weight: '600', size: 12 }, color: '#0F172A' },
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        }
+
+        // ==========================================
+        // RENDERIZAÇÃO DA TABELA (COM BOTÃO DE COMENTÁRIOS)
+        // ==========================================
+        function renderTable() {
+            const tbody = document.getElementById('table-body');
+            const emptyState = document.getElementById('empty-state');
+            tbody.innerHTML = '';
+
+            if (filteredOccurrences.length === 0) {
+                emptyState.classList.remove('hidden');
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+
+            filteredOccurrences.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50 transition';
+
+                // Estilização da Badge de Penalidade (Azul, Preto/Cinza, Vermelho)
+                let badgeClass = 'bg-blue-50 text-corp-blue border-blue-200';
+                let badgeIcon = 'fa-circle-info';
+                if (item.penalidade === 'Média') {
+                    badgeClass = 'bg-slate-800 text-white border-slate-900';
+                    badgeIcon = 'fa-circle-exclamation';
+                } else if (item.penalidade === 'Alta') {
+                    badgeClass = 'bg-red-50 text-corp-red border-red-200';
+                    badgeIcon = 'fa-triangle-exclamation';
+                }
+
+                // Estilização do Setor (Tons corporativos de Azul, Cinza e Preto)
+                let sectorBadge = 'bg-slate-100 text-corp-slate border border-slate-200';
+                if (item.setor === 'Check-in') sectorBadge = 'bg-blue-50 text-corp-navy border border-blue-200';
+                if (item.setor === 'Qualidade') sectorBadge = 'bg-slate-900 text-white';
+                if (item.setor === 'Estoque') sectorBadge = 'bg-slate-200 text-corp-black';
+
+                const commentsCount = Array.isArray(item.comentarios) ? item.comentarios.length : 0;
+                const commentBtnStyle = commentsCount > 0 
+                    ? 'bg-blue-50 hover:bg-blue-100 text-corp-blue border-blue-200 font-bold' 
+                    : 'bg-white hover:bg-slate-100 text-corp-slate border-slate-300 font-medium';
+
+                tr.innerHTML = `
+                    <td class="py-3 px-4 text-xs font-mono text-corp-gray whitespace-nowrap">${escapeHtml(item.dataHora)}</td>
+                    <td class="py-3 px-4 font-bold text-corp-black whitespace-nowrap">${escapeHtml(item.colaborador)}</td>
+                    <td class="py-3 px-4 whitespace-nowrap">
+                        <span class="px-2.5 py-0.5 rounded text-[11px] font-bold ${sectorBadge}">
+                            ${escapeHtml(item.setor)}
+                        </span>
+                    </td>
+                    <td class="py-3 px-4 text-xs font-medium text-corp-black">${escapeHtml(item.tipo)}</td>
+                    <td class="py-3 px-4 whitespace-nowrap">
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[11px] font-bold border ${badgeClass}">
+                            <i class="fa-solid ${badgeIcon}"></i>
+                            ${escapeHtml(item.penalidade)}
+                        </span>
+                    </td>
+                    <td class="py-3 px-4 text-xs font-semibold text-corp-slate whitespace-nowrap">
+                        <i class="fa-solid fa-user-tie text-slate-400 mr-1"></i>${escapeHtml(item.gestor)}
+                    </td>
+                    <td class="py-3 px-4 text-xs text-corp-gray max-w-[200px] truncate" title="${escapeHtml(item.observacoes)}">
+                        ${escapeHtml(item.observacoes)}
+                    </td>
+                    <td class="py-3 px-4 text-right whitespace-nowrap">
+                        <button onclick="openCommentsModal('${escapeHtml(item.id)}')" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs transition cursor-pointer ${commentBtnStyle}">
+                            <i class="fa-regular fa-comment-dots"></i>
+                            <span>${commentsCount > 0 ? commentsCount : 'Comentar'}</span>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // ==========================================
+        // MODAL DE CONFIGURAÇÃO GOOGLE SHEETS
+        // ==========================================
+        function openConfigModal() {
+            document.getElementById('sheets-url-input').value = sheetsWebAppUrl;
+            document.getElementById('config-modal').classList.remove('hidden');
+        }
+
+        function closeConfigModal() {
+            document.getElementById('config-modal').classList.add('hidden');
+        }
+
+        function saveSheetsConfig() {
+            const urlInput = document.getElementById('sheets-url-input').value.trim();
+            if (!urlInput || !urlInput.startsWith('https://script.google.com/')) {
+                showToast('Insira uma URL válida do Google Apps Script (https://script.google.com/...)', 'error');
+                return;
+            }
+
+            sheetsWebAppUrl = urlInput;
+            localStorage.setItem(STORAGE_KEY_URL, sheetsWebAppUrl);
+            updateConnectionUI();
+            closeConfigModal();
+            syncWithGoogleSheets();
+        }
+
+        function disconnectSheets() {
+            sheetsWebAppUrl = '';
+            localStorage.removeItem(STORAGE_KEY_URL);
+            document.getElementById('sheets-url-input').value = '';
+            updateConnectionUI();
+            closeConfigModal();
+            showToast('Desconectado. Operando em Modo Local.', 'info');
+        }
+
+        function updateConnectionUI() {
+            const badge = document.getElementById('connection-badge');
+            const dot = document.getElementById('status-dot');
+            const text = document.getElementById('status-text');
+
+            if (sheetsWebAppUrl) {
+                badge.className = 'flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-50 text-corp-navy border border-blue-300 transition-all';
+                dot.className = 'w-2 h-2 rounded-full bg-corp-blue animate-ping';
+                text.textContent = 'Planilha Conectada';
+            } else {
+                badge.className = 'flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-corp-slate border border-corp-border transition-all';
+                dot.className = 'w-2 h-2 rounded-full bg-corp-gray';
+                text.textContent = 'Modo Local (Demonstração)';
+            }
+        }
+
+        function copyAppsScriptCode() {
+            const codeText = document.getElementById('apps-script-code').innerText;
+            const tempTextArea = document.createElement('textarea');
+            tempTextArea.value = codeText;
+            document.body.appendChild(tempTextArea);
+            tempTextArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempTextArea);
+            showToast('Código Apps Script copiado com sucesso!', 'success');
+        }
+
+        // ==========================================
+        // EXPORTAÇÃO CSV & UTILITÁRIOS
+        // ==========================================
+        function exportToCSV() {
+            if (filteredOccurrences.length === 0) {
+                showToast('Não há dados filtrados para exportar.', 'error');
+                return;
+            }
+
+            const headers = ['ID', 'Data/Hora', 'Colaborador', 'Setor', 'Tipo da Ocorrencia', 'Penalidade', 'Gestor', 'Descricao', 'Qtd Comentarios'];
+            const rows = filteredOccurrences.map(item => [
+                item.id,
+                item.dataHora,
+                `"${(item.colaborador || '').replace(/"/g, '""')}"`,
+                item.setor,
+                `"${(item.tipo || '').replace(/"/g, '""')}"`,
+                item.penalidade,
+                `"${(item.gestor || '').replace(/"/g, '""')}"`,
+                `"${(item.observacoes || '').replace(/"/g, '""')}"`,
+                Array.isArray(item.comentarios) ? item.comentarios.length : 0
+            ]);
+
+            const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + 
+                [headers.join(';'), ...rows.map(e => e.join(';'))].join('\n');
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement('a');
+            link.setAttribute('href', encodedUri);
+            link.setAttribute('download', `FutFanatics_Ocorrencias_${new Date().toISOString().slice(0,10)}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            showToast('Relatório CSV exportado com sucesso!', 'success');
+        }
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            let colors = 'bg-corp-black text-white border-corp-blue';
+            let icon = 'fa-circle-check text-blue-400';
+            if (type === 'error') {
+                colors = 'bg-corp-redDark text-white border-corp-red';
+                icon = 'fa-circle-exclamation text-red-200';
+            } else if (type === 'info') {
+                colors = 'bg-slate-800 text-white border-slate-400';
+                icon = 'fa-circle-info text-slate-300';
+            }
+
+            toast.className = `pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg border-l-4 text-xs font-semibold transition-all duration-300 transform translate-y-2 opacity-0 ${colors}`;
+            toast.innerHTML = `<i class="fa-solid ${icon} text-base"></i><span>${escapeHtml(message)}</span>`;
+            
+            container.appendChild(toast);
+            requestAnimationFrame(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            });
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            return String(text)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+    </script>
+</body>
+</html>
